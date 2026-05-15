@@ -1,21 +1,12 @@
 import asyncio
 import logging
 import os
-import base64
 from telethon import TelegramClient, events
-from telethon.sessions import MemorySession
-from telethon.crypto import AuthKey
 
 API_ID = int(os.environ.get("API_ID", "35076613"))
 API_HASH = os.environ.get("API_HASH", "5f51e95e90785a08d396d13c1e6dc5f1")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "7950311441:AAHI4X3lnVYIzDgXO9SlUhdSpXmBDpHurJU")
 TARGET_CHANNEL = int(os.environ.get("TARGET_CHANNEL", "-1001803815649758"))
-
-# Session ma'lumotlari (freight_session.session dan olindi)
-SESSION_DC_ID = 2
-SESSION_SERVER = "149.154.167.51"
-SESSION_PORT = 443
-SESSION_AUTH_KEY = base64.b64decode("N21Grz7xB11Aub3Km11eZoFGQJHGeaXm83HqdZ/OdgOwgEiaJaNJfu8bcKyNd/MO8Ra7aTvTsTP5vQW6USbdrikwBcAi3nox/WslTiF6Zpbzl/X0q1K/oQFLlWqIxSXzDqOO4G6rJXaEbFCvg24QJeMvriNB0Lhg9iMb6uVoZTHAiwTXqDdVndHsGMf65tbi6z9KsPgxuCR6n+UxZRI/Ua4FQjRE3T+WoSIqhm49u5u9uBoeo+SZtDwGgaxMLBJTViq9IRDlc0n0tSuAk64RUqz05BZtLfnNIsA7JvTef/wvECRaa3t33JufODJFArKHl7O57/LTHPkVQ8xYiCohPw==")
 
 SOURCE_CHANNELS = {
     -1002448589077: "Street brokers IDS/S3",
@@ -54,11 +45,6 @@ def is_duplicate(channel_id, message_id):
 async def main():
     logger.info("Bot ishga tushmoqda...")
 
-    # Memory session - fayl shart emas
-    session = MemorySession()
-    session.set_dc(SESSION_DC_ID, SESSION_SERVER, SESSION_PORT)
-    session.auth_key = AuthKey(data=SESSION_AUTH_KEY)
-
     client = TelegramClient("freight_session", API_ID, API_HASH)
     await client.start()
     logger.info("✅ Telegram-ga ulandi!")
@@ -69,6 +55,11 @@ async def main():
 
     source_ids = list(SOURCE_CHANNELS.keys())
     logger.info(f"📡 {len(source_ids)} ta kanal kuzatilmoqda...")
+
+    # Debug: kanallarni tekshirish
+    async for dialog in client.iter_dialogs():
+        if dialog.id in source_ids:
+            logger.info(f"✅ Kanal topildi: {dialog.name} ({dialog.id})")
 
     @client.on(events.NewMessage(chats=source_ids))
     async def handler(event):
@@ -90,11 +81,6 @@ async def main():
 
         except Exception as e:
             logger.error(f"❌ Xato: {e}")
-# Debug: qaysi kanallarga ulanganini tekshirish
-    async for dialog in client.iter_dialogs():
-        if dialog.id in source_ids:
-            logger.info(f"✅ Kanal topildi: {dialog.name} ({dialog.id})")
-    
 
     logger.info("🚀 Bot tayyor! Kanallarni kuzatyapman...")
     await client.run_until_disconnected()
