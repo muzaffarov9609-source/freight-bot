@@ -9,7 +9,6 @@ API_ID = int(os.environ.get("API_ID", "35076613"))
 API_HASH = os.environ.get("API_HASH", "5f51e95e90785a08d396d13c1e6dc5f1")
 TARGET_CHANNEL = int(os.environ.get("TARGET_CHANNEL", "-1001803815649758"))
 
-# Sessiya fayli yo'li
 SESSION_NAME = "new_freight_session"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SESSION_PATH = os.path.join(BASE_DIR, f"{SESSION_NAME}.session")
@@ -50,29 +49,25 @@ async def main():
         await client.start()
         logger.info("✅ Akkaunt muvaffaqiyatli bog'landi!")
         
-        @client.on(events.NewMessage(chats=list(SOURCE_CHANNELS.keys())))
-        async def handler(event):
-            # Xatolik chiqsa ham botni to'xtatmaslik uchun try-except
+        # NewMessage o'rniga Raw event ishlatamiz - bu eng xavfsiz yo'li
+        @client.on(events.Raw())
+        async def raw_handler(update):
             try:
-                # Faqat matnli xabarlarni olamiz
-                msg_text = event.message.message
-                if not msg_text:
-                    return
-
-                ch_id = event.chat_id
-                ch_name = SOURCE_CHANNELS.get(ch_id, "Unknown")
-                
-                # Oddiy string birlashtirish (indekssiz)
-                res = f"🚛 **NEW LOAD**\n\n"
-                res += f"📍 **Broker:** {ch_name}\n"
-                res += f"📝 **Info:**\n{msg_text}\n\n"
-                res += f"⏰ {datetime.now().strftime('%H:%M')}"
-                
-                await client.send_message(TARGET_CHANNEL, res, link_preview=False)
-                logger.info(f"✅ YUBORILDI: {ch_name}")
-
-            except Exception as e:
-                logger.error(f"⚠️ Xabar yuborishda xato: {e}")
+                # Faqat yangi xabar xabarnomalari bo'lsa (UpdateNewChannelMessage)
+                if hasattr(update, 'message') and update.message.peer_id.channel_id:
+                    cid = int(f"-100{update.message.peer_id.channel_id}")
+                    
+                    if cid in SOURCE_CHANNELS:
+                        ch_name = SOURCE_CHANNELS[cid]
+                        msg_text = update.message.message
+                        
+                        if msg_text and len(msg_text) > 5:
+                            res = f"🚛 **NEW LOAD**\n\n📍 **Broker:** {ch_name}\n📝 **Info:**\n{msg_text}\n\n⏰ {datetime.now().strftime('%H:%M')}"
+                            
+                            await client.send_message(TARGET_CHANNEL, res, link_preview=False)
+                            logger.info(f"✅ YUBORILDI: {ch_name}")
+            except:
+                pass # Har qanday xatoni indamay o'tkazib yuboramiz
 
         logger.info("🎯 Bot tayyor! Kuzatuv boshlandi.")
         await client.run_until_disconnected()
