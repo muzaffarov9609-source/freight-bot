@@ -1,17 +1,20 @@
 import asyncio
 import logging
 import os
-import traceback
 from datetime import datetime
 from telethon import TelegramClient, events
 
-# 1. KONFIGURATSIYA (Railway Environment Variables'dan oladi)
+# 1. KONFIGURATSIYA
 API_ID = int(os.environ.get("API_ID", "35076613"))
 API_HASH = os.environ.get("API_HASH", "5f51e95e90785a08d396d13c1e6dc5f1")
 TARGET_CHANNEL = int(os.environ.get("TARGET_CHANNEL", "-1001803815649758"))
-SESSION_NAME = "freight_session" # .session fayli nomi
 
-# 2. MONITOR QILINADIGAN KANALLAR RO'YXATI
+# Sessiya fayli nomini va to'liq yo'lini aniqlaymiz
+SESSION_NAME = "new_freight_session"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SESSION_PATH = os.path.join(BASE_DIR, f"{SESSION_NAME}.session")
+
+# 2. KANALLAR RO'YXATI
 SOURCE_CHANNELS = {
     -1002448589077: "Street brokers IDS/S3",
     -1001480955628: "RXO/CAYOTE/XPO",
@@ -31,86 +34,46 @@ SOURCE_CHANNELS = {
     -1001292793466: "PO/VAN/Refer",
 }
 
-# 3. LOGGING (Xatolarni ko'rish uchun)
-logging.basicConfig(
-    level=logging.INFO, 
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# Duplikatlarni oldini olish uchun
-seen_messages = set()
-
-def is_duplicate(channel_id, message_id):
-    key = f"{channel_id}:{message_id}"
-    if key in seen_messages:
-        return True
-    seen_messages.add(key)
-    if len(seen_messages) > 5000:
-        seen_messages.clear()
-    return False
-
-def format_message(channel_name, text):
-    now = datetime.now().strftime("%d %b %Y, %H:%M")
-    return (
-        f"🚛 **NEW LOAD**\n\n"
-        f"📍 **Broker:** {channel_name}\n"
-        f"📝 **Info:**\n{text}\n\n"
-        f"⏰ **Time:** {now}"
-    )
-
 async def main():
-    logger.info("🚀 FREIGHT MONITOR ISHGA TUSHMOQDA...")
-    
-    # 4. KLIYENTNI ISHGA TUSHIRISH
-    client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
+    logger.info("🚀 FREIGHT MONITOR STARTING...")
+    logger.info(f"Checking for session file at: {SESSION_PATH}")
+
+    # Fayl borligini tekshiramiz
+    if not os.path.exists(SESSION_PATH):
+        logger.error(f"❌ XATO: {SESSION_NAME}.session topilmadi!")
+        logger.info(f"Papkadagi fayllar: {os.listdir(BASE_DIR)}")
+        return
+
+    # Kliyentni yaratishda to'liq yo'lni beramiz
+    client = TelegramClient(SESSION_PATH, API_ID, API_HASH)
     
     try:
         await client.start()
         logger.info("✅ Akkaunt muvaffaqiyatli bog'landi!")
         
-        me = await client.get_me()
-        logger.info(f"✅ Foydalanuvchi: {me.first_name} (@{me.username})")
-        
+        @client.on(events.NewMessage(chats=list(SOURCE_CHANNELS.keys())))
+        async def handler(event):
+            try:
+                channel_name = SOURCE_CHANNELS.get(event.chat_id, "Unknown")
+                text = event.raw_text
+                if not text: return
+
+                now = datetime.now().strftime("%H:%M")
+                formatted = f"🚛 **NEW LOAD**\n\n📍 **Broker:** {channel_name}\n📝 **Info:**\n{text}\n\n⏰ {now}"
+                
+                await client.send_message(TARGET_CHANNEL, formatted, link_preview=False)
+                logger.info(f"✅ YUBORILDI: {channel_name}")
+            except Exception as e:
+                logger.error(f"Error: {e}")
+
+        logger.info("🎯 Bot tayyor!")
+        await client.run_until_disconnected()
+
     except Exception as e:
-        logger.error(f"❌ Ulana olmadi. Sababi: {e}")
-        return
-
-    # 5. XABARLARNI TUTIB OLISH HANDLERI
-    @client.on(events.NewMessage(chats=list(SOURCE_CHANNELS.keys())))
-    async def handler(event):
-        try:
-            channel_id = event.chat_id
-            channel_name = SOURCE_CHANNELS.get(channel_id, "Unknown Channel")
-            
-            # Debug: Logda har bir kelgan xabarni ko'rish
-            logger.info(f"📩 Yangi xabar keldi: [{channel_name}] (ID: {channel_id})")
-
-            if is_duplicate(channel_id, event.id):
-                return
-
-            text = event.message.message or ""
-            if not text.strip():
-                return
-
-            # Xabarni formatlash va yuborish
-            formatted_text = format_message(channel_name, text)
-            
-            await client.send_message(
-                TARGET_CHANNEL, 
-                formatted_text, 
-                link_preview=False
-            )
-            logger.info(f"✅ YUBORILDI: {channel_name}")
-
-        except Exception as e:
-            logger.error(f"❌ Handlerda xatolik: {e}")
-
-    logger.info(f"📡 {len(SOURCE_CHANNELS)} ta kanal kuzatilyapti...")
-    await client.run_until_disconnected()
+        logger.error(f"❌ Xato: {e}")
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        pass
+    asyncio.run(main())
