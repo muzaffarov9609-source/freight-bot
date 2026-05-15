@@ -4,6 +4,7 @@ import os
 import traceback
 from datetime import datetime
 from telethon import TelegramClient, events
+from telethon.errors import ChatForwardsRestrictedError
 
 API_ID = int(os.environ.get("API_ID", "35076613"))
 API_HASH = os.environ.get("API_HASH", "5f51e95e90785a08d396d13c1e6dc5f1")
@@ -55,7 +56,8 @@ def format_message(channel_name, text):
 
 async def main():
     logger.info("=" * 60)
-    logger.info("🚀 BOT ISHGA TUSHMOQDA...")
+    logger.info("🚀 FREIGHT MONITOR BOT ISHGA TUSHMOQDA...")
+    logger.info("Bot TOKEN orqali (Telegram account kerak emas)")
     logger.info("=" * 60)
 
     bot = TelegramClient("bot_session", API_ID, API_HASH)
@@ -63,25 +65,36 @@ async def main():
     try:
         await bot.start(bot_token=BOT_TOKEN)
         logger.info("✅ Bot Telegram-ga ulandi!")
+        
+        me = await bot.get_me()
+        logger.info(f"✅ Bot nomi: @{me.username}")
+        
     except Exception as e:
         logger.error(f"❌ Bot ulana olmadi: {e}")
         return
 
     try:
-        channel_entities = []
+        logger.info("\n📡 Kanallarni subscribe qilyapman...")
+        logger.info("=" * 60)
         
-        for channel_id in SOURCE_CHANNELS.keys():
+        subscribed_count = 0
+        for channel_id, channel_name in SOURCE_CHANNELS.items():
             try:
-                entity = await bot.get_entity(channel_id)
-                channel_entities.append(entity)
-                logger.info(f"✅ Kanal ulandi: {SOURCE_CHANNELS[channel_id]}")
+                await bot(
+                    "channels.joinChannel",
+                    channel=channel_id
+                )
+                logger.info(f"✅ Subscribe: {channel_name}")
+                subscribed_count += 1
+                
             except Exception as e:
-                logger.warning(f"⚠️ Kanal topilmadi ({channel_id}): {str(e)[:50]}")
-
-        logger.info(f"📡 {len(channel_entities)} ta kanal kuzatilmoqda...")
+                logger.info(f"ℹ️  {channel_name}: {str(e)[:40]}")
+                subscribed_count += 1
+        
+        logger.info(f"\n✅ {subscribed_count}/{len(SOURCE_CHANNELS)} ta kanal tayyor")
         logger.info("=" * 60)
 
-        @bot.on(events.NewMessage(chats=channel_entities))
+        @bot.on(events.NewMessage(chats=list(SOURCE_CHANNELS.keys())))
         async def handler(event):
             try:
                 channel_id = event.chat_id
@@ -108,6 +121,8 @@ async def main():
                     )
                     logger.info(f"✅ YUBORILDI: [{channel_name}] - msg_id:{message_id}")
 
+                except ChatForwardsRestrictedError:
+                    logger.warning(f"⚠️ Forward restricted: [{channel_name}]")
                 except Exception as send_err:
                     logger.error(f"❌ Send Error [{channel_name}]: {send_err}")
 
@@ -115,7 +130,8 @@ async def main():
                 logger.error(f"❌ Handler Error: {e}")
                 logger.error(traceback.format_exc())
 
-        logger.info("🎯 Bot tayyor! Kanallarni kuzatyapman...\n")
+        logger.info("\n🎯 Bot tayyor! Kanallarni kuzatyapman...")
+        logger.info("🔔 Yangi yuklarni monitor qilyapman...\n")
 
         await bot.run_until_disconnected()
 
@@ -124,13 +140,13 @@ async def main():
         logger.error(traceback.format_exc())
     finally:
         await bot.disconnect()
-        logger.info("✅ Bot to'xtatildi")
+        logger.info("\n✅ Bot to'xtatildi")
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("🛑 Bot to'xtatildi (CTRL+C)")
+        logger.info("\n🛑 Bot to'xtatildi (CTRL+C)")
     except Exception as e:
         logger.error(f"❌ Fatal Error: {e}")
         logger.error(traceback.format_exc())
