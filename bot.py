@@ -53,15 +53,16 @@ async def main():
     await bot.start(bot_token=BOT_TOKEN)
     logger.info("✅ Bot ulandi!")
 
-    source_ids = list(SOURCE_CHANNELS.keys())
-    logger.info(f"📡 {len(source_ids)} ta kanal kuzatilmoqda...")
-
-    # Debug: kanallarni tekshirish
+    # Kanallarni entity sifatida yuklash
+    channel_entities = []
     async for dialog in client.iter_dialogs():
-        if dialog.id in source_ids:
-            logger.info(f"✅ Kanal topildi: {dialog.name} ({dialog.id})")
+        if dialog.id in SOURCE_CHANNELS:
+            channel_entities.append(dialog.entity)
+            logger.info(f"✅ Kanal tayyor: {dialog.name}")
 
-    @client.on(events.NewMessage(chats=source_ids))
+    logger.info(f"📡 {len(channel_entities)} ta kanal kuzatilmoqda...")
+
+    @client.on(events.NewMessage(chats=channel_entities))
     async def handler(event):
         try:
             channel_id = event.chat_id
