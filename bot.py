@@ -1,8 +1,9 @@
 import asyncio
 import logging
 import os
+import re
 from datetime import datetime
-from telethon import TelegramClient, events
+from telethon import TelegramClient, events, Button
 
 # 1. SOZLAMALAR
 API_ID = int(os.environ.get("API_ID", "35076613"))
@@ -14,10 +15,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SESSION_PATH = os.path.join(BASE_DIR, f"{SESSION_NAME}.session")
 
 # 2. FILTRLAR
-# Yukni anglatuvchi kalit so'zlar (faqat shu so'zlar bo'lsa yuboradi)
-KEYWORDS = ["GA", "TX", "CA", "FL", "NY", "IL", "PO", "VNL", "DRY", "VAN", "LOAD", "READY", "OFFER", "TO:", "->"]
-# Reklama so'zlari (shu so'zlar bo'lsa yubormaydi)
-BLACKLIST = ["http", "t.me/", "join", "subscribe", "obuna", "reklama", "promo", "discount"]
+KEYWORDS = ["GA", "TX", "CA", "FL", "NY", "IL", "PO", "VNL", "DRY", "VAN", "LOAD", "READY", "OFFER", "TO:", "->", "TEAM"]
+BLACKLIST = ["http", "t.me/", "join", "subscribe", "obuna", "reklama", "promo", "discount", "channel"]
 
 SOURCE_CHANNELS = {
     -1002448589077: "Street brokers", -1001480955628: "RXO/CAYOTE",
@@ -34,7 +33,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 async def main():
-    logger.info("🚀 AQLLI FILTRLANGAN MONITOR STARTING...")
+    logger.info("🚀 BROKER USERNAME MONITOR STARTING...")
     client = TelegramClient(SESSION_PATH, API_ID, API_HASH)
     
     try:
@@ -47,18 +46,24 @@ async def main():
                 msg_text = event.message.message
                 if not msg_text: return
                 
-                text_upper = msg_text.upper()
-
-                # REKLAMA FILTRI: Agar xabarda reklama bo'lsa to'xtatamiz
+                # REKLAMA FILTRI
                 if any(word in msg_text.lower() for word in BLACKLIST):
-                    logger.info("🚫 Reklama aniqlandi, o'chirildi.")
                     return
 
-                # YUK FILTRI: Faqat yuk so'zlari bor xabarlarni olamiz
-                if any(word in text_upper for word in KEYWORDS):
+                # YUK FILTRI
+                if any(word in msg_text.upper() for word in KEYWORDS):
                     ch_name = SOURCE_CHANNELS.get(event.chat_id, "Unknown")
                     
-                    # SIZ SO'RAGAN SHABLON (Tez va tushunarli)
+                    # Username-ni xabar ichidan qidirib topish (@username)
+                    usernames = re.findall(r'@\w+', msg_text)
+                    buttons = []
+                    
+                    if usernames:
+                        # Birinchi topilgan username uchun tugma yaratish
+                        broker_user = usernames[0]
+                        buttons = [Button.url("💬 Brokerga yozish", f"https://t.me/{broker_user[1:]}")]
+
+                    # SIZ SO'RAGAN SHABLON
                     res = (
                         f"🚚 **{ch_name}**\n"
                         f"━━━━━━━━━━━━━━━\n"
@@ -67,10 +72,14 @@ async def main():
                         f"🕒 {datetime.now().strftime('%H:%M')} | #FREIGHT"
                     )
                     
-                    await client.send_message(TARGET_CHANNEL, res, link_preview=False)
+                    # Xabarni yuborish (agar tugma bo'lsa, tugma bilan birga)
+                    await client.send_message(
+                        TARGET_CHANNEL, 
+                        res, 
+                        buttons=buttons if buttons else None,
+                        link_preview=False
+                    )
                     logger.info(f"✅ YUBORILDI: {ch_name}")
-                else:
-                    logger.info("⏭️ Yukka aloqador emas, tashlab ketildi.")
 
             except Exception as e:
                 logger.error(f"⚠️ Error: {e}")
