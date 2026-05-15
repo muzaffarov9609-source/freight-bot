@@ -3,7 +3,7 @@ import logging
 import os
 import re
 from datetime import datetime
-from telethon import TelegramClient, events, Button
+from telethon import TelegramClient, events
 
 # 1. SOZLAMALAR
 API_ID = int(os.environ.get("API_ID", "35076613"))
@@ -16,7 +16,7 @@ SESSION_PATH = os.path.join(BASE_DIR, f"{SESSION_NAME}.session")
 
 # 2. FILTRLAR
 KEYWORDS = ["GA", "TX", "CA", "FL", "NY", "IL", "PO", "VNL", "DRY", "VAN", "LOAD", "READY", "OFFER", "TO:", "->", "TEAM"]
-BLACKLIST = ["http", "t.me/", "join", "subscribe", "obuna", "reklama", "promo", "discount", "channel"]
+BLACKLIST = ["http", "join", "subscribe", "obuna", "reklama", "promo", "discount"]
 
 SOURCE_CHANNELS = {
     -1002448589077: "Street brokers", -1001480955628: "RXO/CAYOTE",
@@ -33,8 +33,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 async def main():
-    logger.info("🚀 BROKER USERNAME MONITOR STARTING...")
-    client = TelegramClient(SESSION_PATH, API_ID, API_HASH)
+    logger.info("🚀 STABLE MONITOR STARTING...")
+    # connection_retries - ulanish uzilsa qayta bog'lanish uchun
+    client = TelegramClient(SESSION_PATH, API_ID, API_HASH, connection_retries=None, retry_delay=5)
     
     try:
         await client.start()
@@ -54,39 +55,35 @@ async def main():
                 if any(word in msg_text.upper() for word in KEYWORDS):
                     ch_name = SOURCE_CHANNELS.get(event.chat_id, "Unknown")
                     
-                    # Username-ni xabar ichidan qidirib topish (@username)
+                    # Username-ni topish
                     usernames = re.findall(r'@\w+', msg_text)
-                    buttons = []
-                    
+                    contact_info = ""
                     if usernames:
-                        # Birinchi topilgan username uchun tugma yaratish
-                        broker_user = usernames[0]
-                        buttons = [Button.url("💬 Brokerga yozish", f"https://t.me/{broker_user[1:]}")]
+                        contact_info = f"\n\n👤 **Broker:** {usernames[0]}"
 
-                    # SIZ SO'RAGAN SHABLON
+                    # SHABLON
                     res = (
                         f"🚚 **{ch_name}**\n"
                         f"━━━━━━━━━━━━━━━\n"
-                        f"{msg_text}\n"
+                        f"{msg_text}"
+                        f"{contact_info}\n"
                         f"━━━━━━━━━━━━━━━\n"
                         f"🕒 {datetime.now().strftime('%H:%M')} | #FREIGHT"
                     )
                     
-                    # Xabarni yuborish (agar tugma bo'lsa, tugma bilan birga)
-                    await client.send_message(
-                        TARGET_CHANNEL, 
-                        res, 
-                        buttons=buttons if buttons else None,
-                        link_preview=False
-                    )
+                    await client.send_message(TARGET_CHANNEL, res, link_preview=False)
                     logger.info(f"✅ YUBORILDI: {ch_name}")
 
             except Exception as e:
-                logger.error(f"⚠️ Error: {e}")
+                logger.error(f"⚠️ Handler Error: {e}")
 
+        # Bot o'chib qolmasligi uchun cheksiz kutish
         await client.run_until_disconnected()
+        
     except Exception as e:
         logger.error(f"❌ Fatal Error: {e}")
+    finally:
+        await client.disconnect()
 
 if __name__ == "__main__":
     asyncio.run(main())
