@@ -90,11 +90,11 @@ async def main():
 
             formatted = format_message(channel_name, text)
 
-            await bot.send_message(
-                TARGET_CHANNEL,
-                formatted,
+            await client.send_message(
+                    TARGET_CHANNEL,
+                    formatted,
                 link_preview=False
-            )
+             ) 
 
             logger.info(f"✅ Sent: [{channel_name}] - msg_id:{message_id}")
 
