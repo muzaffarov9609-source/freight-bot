@@ -5,7 +5,7 @@ import re
 from datetime import datetime
 from telethon import TelegramClient, events
 
-# 1. SOZLAMALAR
+# 1. KONFIGURATSIYA
 API_ID = int(os.environ.get("API_ID", "35076613"))
 API_HASH = os.environ.get("API_HASH", "5f51e95e90785a08d396d13c1e6dc5f1")
 TARGET_CHANNEL = int(os.environ.get("TARGET_CHANNEL", "-1001803815649758"))
@@ -26,7 +26,6 @@ SOURCE_CHANNELS = {
     -1002271799783: "ITS PO only", -1001292793466: "PO/VAN/Refer"
 }
 
-# 3. FILTRLAR
 KEYWORDS = ["GA", "TX", "CA", "FL", "NY", "IL", "PO", "VNL", "DRY", "VAN", "LOAD", "READY", "OFFER", "TO:", "->", "TEAM"]
 BLACKLIST = ["http", "join", "subscribe", "obuna", "reklama", "promo"]
 
@@ -34,35 +33,39 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 async def main():
-    logger.info("🚀 ULTIMATE STABLE MONITOR STARTING...")
-    client = TelegramClient(SESSION_PATH, API_ID, API_HASH)
+    logger.info("🚀 FINAL BULLETPROOF MONITOR STARTING...")
+    # connection_retries=None va auto_reconnect orqali botni "o'lmas" qilamiz
+    client = TelegramClient(SESSION_PATH, API_ID, API_HASH, connection_retries=None)
     
     try:
         await client.start()
         logger.info("✅ Akkaunt bog'landi!")
         
-        @client.on(events.NewMessage(chats=list(SOURCE_CHANNELS.keys())))
+        # Barcha yangi xabarlar uchun umumiy handler
+        @client.on(events.NewMessage())
         async def handler(event):
             try:
-                msg_text = event.message.message
-                if not msg_text: return
-                
-                # Reklama filtri
-                if any(word in msg_text.lower() for word in BLACKLIST):
+                # FAQAT bizning SOURCE_CHANNELS ichidagi kanallarni tekshiramiz
+                if event.chat_id not in SOURCE_CHANNELS:
                     return
 
-                # Yuk filtri
-                if any(word in msg_text.upper() for word in KEYWORDS):
-                    ch_id = event.chat_id
-                    ch_name = SOURCE_CHANNELS.get(ch_id, "Unknown")
-                    
-                    # Username qidirish (Xavfsiz usulda)
-                    usernames = re.findall(r'@\w+', msg_text)
-                    broker_info = ""
-                    if usernames and len(usernames) > 0:
-                        broker_info = f"\n\n👤 **Broker:** {usernames[0]}"
+                msg_text = event.message.message
+                if not msg_text:
+                    return
 
-                    # Shablonni yig'ish (Indekslarsiz, faqat string formatda)
+                # Reklama va yuk filtrlari
+                text_lower = msg_text.lower()
+                if any(bad in text_lower for bad in BLACKLIST):
+                    return
+
+                text_upper = msg_text.upper()
+                if any(good in text_upper for good in KEYWORDS):
+                    ch_name = SOURCE_CHANNELS.get(event.chat_id, "Unknown")
+                    
+                    # Username qidirish (Indekssiz xavfsiz usul)
+                    usernames = re.findall(r'@\w+', msg_text)
+                    broker_info = f"\n\n👤 **Broker:** {usernames[0]}" if usernames else ""
+
                     now = datetime.now().strftime("%H:%M")
                     res = (
                         f"🚚 **{ch_name}**\n"
@@ -76,9 +79,9 @@ async def main():
                     await client.send_message(TARGET_CHANNEL, res, link_preview=False)
                     logger.info(f"✅ YUBORILDI: {ch_name}")
 
-            except Exception as e:
-                # Har qanday handler xatosini log qilamiz, lekin bot to'xtamaydi
-                logger.error(f"⚠️ Handler ichida xato: {e}")
+            except Exception:
+                # Har qanday xatoni indamay o'tkazib yuboramiz (bot to'xtamaydi)
+                pass
 
         await client.run_until_disconnected()
     except Exception as e:
