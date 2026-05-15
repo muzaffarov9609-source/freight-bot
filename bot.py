@@ -79,29 +79,21 @@ async def main():
 
             if event.message.media:
                 try:
-                    await client.send_file(
+                    # Media faylni yuklab bot orqali yuborish
+                    file = await client.download_media(event.message, bytes)
+                    await bot.send_file(
                         TARGET_CHANNEL,
-                        file=event.message.media,
+                        file=file,
                         caption=caption
                     )
                 except Exception as media_err:
                     logger.error(f"❌ Media xato: {media_err}")
-                    logger.error(traceback.format_exc())
-                    # Media ishlamasa faqat matn yuborish
                     if text.strip():
-                        await client.send_message(
-                            TARGET_CHANNEL,
-                            caption,
-                            link_preview=False
-                        )
+                        await bot.send_message(TARGET_CHANNEL, caption, link_preview=False)
             elif text.strip():
-                await client.send_message(
-                    TARGET_CHANNEL,
-                    caption,
-                    link_preview=False
-                )
+                await bot.send_message(TARGET_CHANNEL, caption, link_preview=False)
             else:
-                logger.info(f"⏭️ Bo'sh xabar o'tkazildi: [{channel_name}]")
+                logger.info(f"⏭️ Bo'sh xabar o'tkazildi")
                 return
 
             logger.info(f"✅ Yuborildi: [{channel_name}] - msg_id:{message_id}")
