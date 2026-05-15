@@ -5,7 +5,7 @@ import re
 from datetime import datetime
 from telethon import TelegramClient, events
 
-# 1. KONFIGURATSIYA
+# 1. SOZLAMALAR
 API_ID = int(os.environ.get("API_ID", "35076613"))
 API_HASH = os.environ.get("API_HASH", "5f51e95e90785a08d396d13c1e6dc5f1")
 TARGET_CHANNEL = int(os.environ.get("TARGET_CHANNEL", "-1001803815649758"))
@@ -26,61 +26,72 @@ SOURCE_CHANNELS = {
     -1002271799783: "ITS PO only", -1001292793466: "PO/VAN/Refer"
 }
 
-KEYWORDS = ["GA", "TX", "CA", "FL", "NY", "IL", "PO", "VNL", "DRY", "VAN", "LOAD", "READY", "OFFER", "TO:", "->", "TEAM"]
-BLACKLIST = ["http", "join", "subscribe", "obuna", "reklama", "promo"]
+# 3. FILTRLAR (Yumshoq va faqat yuklar uchun)
+KEYWORDS = ["PO", "VNL", "VAN", "LOAD", "READY", "OFFER", "TEAM", "SOLO", "RPM", "MILES", "TRIP", "PICK", "DROP"]
+BLACKLIST = ["join channel", "subscribe", "obuna bo'ling", "reklama sotiladi"]
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 async def main():
-    logger.info("🚀 FINAL BULLETPROOF MONITOR STARTING...")
-    # connection_retries=None va auto_reconnect orqali botni "o'lmas" qilamiz
+    logger.info("🚀 USERNAME FREIGHT MONITOR STARTING...")
     client = TelegramClient(SESSION_PATH, API_ID, API_HASH, connection_retries=None)
     
     try:
         await client.start()
         logger.info("✅ Akkaunt bog'landi!")
         
-        # Barcha yangi xabarlar uchun umumiy handler
         @client.on(events.NewMessage())
         async def handler(event):
             try:
-                # FAQAT bizning SOURCE_CHANNELS ichidagi kanallarni tekshiramiz
                 if event.chat_id not in SOURCE_CHANNELS:
                     return
 
+                # Xabarni markdown entitiylari (bosiladigan havolalar, ko'k usernames) bilan birga olamiz
                 msg_text = event.message.message
                 if not msg_text:
                     return
 
-                # Reklama va yuk filtrlari
                 text_lower = msg_text.lower()
+
+                # 1. REKLAMA FILTRI
                 if any(bad in text_lower for bad in BLACKLIST):
                     return
 
-                text_upper = msg_text.upper()
-                if any(good in text_upper for good in KEYWORDS):
+                # 2. YUK VA SHTAT TEKSHIRUVI
+                has_usa_state = bool(re.search(r'\b[A-Z]{2}\b', msg_text))
+                has_keyword = any(good in msg_text.upper() for good in KEYWORDS)
+                # Agar broker shunchaki @username qoldirgan bo'lsa ham yuk deb hisoblasin
+                has_at_username = "@" in msg_text 
+
+                if has_keyword or has_usa_state or has_at_username:
                     ch_name = SOURCE_CHANNELS.get(event.chat_id, "Unknown")
                     
-                    # Username qidirish (Indekssiz xavfsiz usul)
+                    # Matn ichidagi barcha @usernamelarni qidirib topish
                     usernames = re.findall(r'@\w+', msg_text)
-                    broker_info = f"\n\n👤 **Broker:** {usernames[0]}" if usernames else ""
+                    broker_contacts = ""
+                    
+                    if usernames:
+                        # Noyob (duplicate bo'lmagan) usernamelarni saralab olamiz
+                        unique_users = list(set(usernames))
+                        broker_contacts = "\n\n👤 **Brokers to contact:** " + ", ".join(unique_users)
 
+                    # CHUQQUR FORMATLANGAN SHABLON
                     now = datetime.now().strftime("%H:%M")
                     res = (
                         f"🚚 **{ch_name}**\n"
                         f"━━━━━━━━━━━━━━━\n"
                         f"{msg_text}"
-                        f"{broker_info}\n"
+                        f"{broker_contacts}\n"
                         f"━━━━━━━━━━━━━━━\n"
                         f"🕒 {now} | #FREIGHT"
                     )
                     
+                    # Xabarni o'z kanalingizga yuborish
                     await client.send_message(TARGET_CHANNEL, res, link_preview=False)
                     logger.info(f"✅ YUBORILDI: {ch_name}")
 
             except Exception:
-                # Har qanday xatoni indamay o'tkazib yuboramiz (bot to'xtamaydi)
                 pass
 
         await client.run_until_disconnected()
