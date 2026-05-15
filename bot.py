@@ -59,8 +59,8 @@ async def main():
     session.set_dc(SESSION_DC_ID, SESSION_SERVER, SESSION_PORT)
     session.auth_key = AuthKey(data=SESSION_AUTH_KEY)
 
-    client = TelegramClient(session, API_ID, API_HASH)
-    await client.connect()
+    client = TelegramClient("freight_session", API_ID, API_HASH)
+    await client.start()
     logger.info("✅ Telegram-ga ulandi!")
 
     bot = TelegramClient("bot_session", API_ID, API_HASH)
