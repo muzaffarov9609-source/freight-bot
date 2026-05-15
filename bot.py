@@ -1,6 +1,3 @@
-GitHub → `bot.py` → hammасini o'chirib quyidagini qo'ying:
-
-```python
 import asyncio
 import logging
 import os
@@ -9,7 +6,7 @@ from datetime import datetime
 from telethon import TelegramClient, events
 
 API_ID = int(os.environ.get("API_ID", "35076613"))
-API_HASH = os.environ.get("API_HASH", "5f51e95e90785a08d396d13c1e6dc5f1"))
+API_HASH = os.environ.get("API_HASH", "5f51e95e90785a08d396d13c1e6dc5f1")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "7950311441:AAHI4X3lnVYIzDgXO9SlUhdSpXmBDpHurJU")
 TARGET_CHANNEL = int(os.environ.get("TARGET_CHANNEL", "-1001803815649758"))
 
@@ -110,6 +107,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-```
-
-Commit qiling! 🚀
