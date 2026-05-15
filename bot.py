@@ -14,10 +14,7 @@ SESSION_NAME = "super_stable_session"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SESSION_PATH = os.path.join(BASE_DIR, f"{SESSION_NAME}.session")
 
-# 2. FILTRLAR
-KEYWORDS = ["GA", "TX", "CA", "FL", "NY", "IL", "PO", "VNL", "DRY", "VAN", "LOAD", "READY", "OFFER", "TO:", "->", "TEAM"]
-BLACKLIST = ["http", "join", "subscribe", "obuna", "reklama", "promo", "discount"]
-
+# 2. MONITOR KANALLARI
 SOURCE_CHANNELS = {
     -1002448589077: "Street brokers", -1001480955628: "RXO/CAYOTE",
     -1001701195430: "Forward Air", -1001200307642: "UTXL",
@@ -29,13 +26,16 @@ SOURCE_CHANNELS = {
     -1002271799783: "ITS PO only", -1001292793466: "PO/VAN/Refer"
 }
 
+# 3. FILTRLAR
+KEYWORDS = ["GA", "TX", "CA", "FL", "NY", "IL", "PO", "VNL", "DRY", "VAN", "LOAD", "READY", "OFFER", "TO:", "->", "TEAM"]
+BLACKLIST = ["http", "join", "subscribe", "obuna", "reklama", "promo"]
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 async def main():
-    logger.info("🚀 STABLE MONITOR STARTING...")
-    # connection_retries - ulanish uzilsa qayta bog'lanish uchun
-    client = TelegramClient(SESSION_PATH, API_ID, API_HASH, connection_retries=None, retry_delay=5)
+    logger.info("🚀 ULTIMATE STABLE MONITOR STARTING...")
+    client = TelegramClient(SESSION_PATH, API_ID, API_HASH)
     
     try:
         await client.start()
@@ -47,43 +47,42 @@ async def main():
                 msg_text = event.message.message
                 if not msg_text: return
                 
-                # REKLAMA FILTRI
+                # Reklama filtri
                 if any(word in msg_text.lower() for word in BLACKLIST):
                     return
 
-                # YUK FILTRI
+                # Yuk filtri
                 if any(word in msg_text.upper() for word in KEYWORDS):
-                    ch_name = SOURCE_CHANNELS.get(event.chat_id, "Unknown")
+                    ch_id = event.chat_id
+                    ch_name = SOURCE_CHANNELS.get(ch_id, "Unknown")
                     
-                    # Username-ni topish
+                    # Username qidirish (Xavfsiz usulda)
                     usernames = re.findall(r'@\w+', msg_text)
-                    contact_info = ""
-                    if usernames:
-                        contact_info = f"\n\n👤 **Broker:** {usernames[0]}"
+                    broker_info = ""
+                    if usernames and len(usernames) > 0:
+                        broker_info = f"\n\n👤 **Broker:** {usernames[0]}"
 
-                    # SHABLON
+                    # Shablonni yig'ish (Indekslarsiz, faqat string formatda)
+                    now = datetime.now().strftime("%H:%M")
                     res = (
                         f"🚚 **{ch_name}**\n"
                         f"━━━━━━━━━━━━━━━\n"
                         f"{msg_text}"
-                        f"{contact_info}\n"
+                        f"{broker_info}\n"
                         f"━━━━━━━━━━━━━━━\n"
-                        f"🕒 {datetime.now().strftime('%H:%M')} | #FREIGHT"
+                        f"🕒 {now} | #FREIGHT"
                     )
                     
                     await client.send_message(TARGET_CHANNEL, res, link_preview=False)
                     logger.info(f"✅ YUBORILDI: {ch_name}")
 
             except Exception as e:
-                logger.error(f"⚠️ Handler Error: {e}")
+                # Har qanday handler xatosini log qilamiz, lekin bot to'xtamaydi
+                logger.error(f"⚠️ Handler ichida xato: {e}")
 
-        # Bot o'chib qolmasligi uchun cheksiz kutish
         await client.run_until_disconnected()
-        
     except Exception as e:
         logger.error(f"❌ Fatal Error: {e}")
-    finally:
-        await client.disconnect()
 
 if __name__ == "__main__":
     asyncio.run(main())
