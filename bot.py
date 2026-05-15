@@ -90,6 +90,11 @@ async def main():
 
         except Exception as e:
             logger.error(f"❌ Xato: {e}")
+# Debug: qaysi kanallarga ulanganini tekshirish
+    async for dialog in client.iter_dialogs():
+        if dialog.id in source_ids:
+            logger.info(f"✅ Kanal topildi: {dialog.name} ({dialog.id})")
+    
 
     logger.info("🚀 Bot tayyor! Kanallarni kuzatyapman...")
     await client.run_until_disconnected()
