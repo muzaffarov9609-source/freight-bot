@@ -1,21 +1,20 @@
 import asyncio
 import logging
 import os
-import traceback
 from datetime import datetime
 from telethon import TelegramClient, events
 
-# 1. KONFIGURATSIYA (Railway Environment Variables'dan oladi)
+# 1. KONFIGURATSIYA
 API_ID = int(os.environ.get("API_ID", "35076613"))
 API_HASH = os.environ.get("API_HASH", "5f51e95e90785a08d396d13c1e6dc5f1")
 TARGET_CHANNEL = int(os.environ.get("TARGET_CHANNEL", "-1001803815649758"))
 
-# Sessiya fayli yo'lini aniqlash
+# Sessiya fayli yo'li
 SESSION_NAME = "new_freight_session"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SESSION_PATH = os.path.join(BASE_DIR, f"{SESSION_NAME}.session")
 
-# 2. MONITOR QILINADIGAN KANALLAR
+# 2. KANALLAR RO'YXATI
 SOURCE_CHANNELS = {
     -1002448589077: "Street brokers IDS/S3",
     -1001480955628: "RXO/CAYOTE/XPO",
@@ -35,90 +34,51 @@ SOURCE_CHANNELS = {
     -1001292793466: "PO/VAN/Refer",
 }
 
-# 3. LOGGING (Xatolarni kuzatish uchun)
-logging.basicConfig(
-    level=logging.INFO, 
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
-# Duplikat xabarlarni filtrlash uchun
-seen_messages = set()
 
 async def main():
     logger.info("🚀 FREIGHT MONITOR STARTING...")
-    
-    # Sessiya fayli borligini tekshirish
+
     if not os.path.exists(SESSION_PATH):
-        logger.error(f"❌ XATO: {SESSION_PATH} topilmadi!")
-        logger.info(f"Papkadagi fayllar: {os.listdir(BASE_DIR)}")
+        logger.error(f"❌ {SESSION_PATH} topilmadi!")
         return
 
-    # Kliyentni ishga tushiramiz
     client = TelegramClient(SESSION_PATH, API_ID, API_HASH)
     
     try:
         await client.start()
         logger.info("✅ Akkaunt muvaffaqiyatli bog'landi!")
         
-        me = await client.get_me()
-        logger.info(f"✅ Monitoring James (@{me.username}) orqali ishlayapti.")
-
-        # 4. XABARLARNI TUTISH HANDLERI
         @client.on(events.NewMessage(chats=list(SOURCE_CHANNELS.keys())))
         async def handler(event):
+            # Xatolik chiqsa ham botni to'xtatmaslik uchun try-except
             try:
-                # Kanal ma'lumotlarini olish
-                channel_id = event.chat_id
-                channel_name = SOURCE_CHANNELS.get(channel_id, "Unknown Channel")
+                # Faqat matnli xabarlarni olamiz
+                msg_text = event.message.message
+                if not msg_text:
+                    return
+
+                ch_id = event.chat_id
+                ch_name = SOURCE_CHANNELS.get(ch_id, "Unknown")
                 
-                # Matnni xavfsiz usulda olish
-                text = event.raw_text
-                if not text or len(text.strip()) < 5: # Bo'sh yoki juda qisqa xabarlarni skip qilish
-                    return
-
-                # Duplikatlarni tekshirish (Kanal ID va Xabar ID orqali)
-                msg_key = f"{channel_id}:{event.id}"
-                if msg_key in seen_messages:
-                    return
-                seen_messages.add(msg_key)
-
-                # Ro'yxatni juda kattalashib ketishidan saqlash
-                if len(seen_messages) > 1000:
-                    seen_messages.clear()
-
-                # Vaqtni formatlash
-                now = datetime.now().strftime("%H:%M")
-
-                # Xabarni chiroyli ko'rinishga keltirish
-                formatted_text = (
-                    f"🚛 **NEW LOAD ALERT**\n\n"
-                    f"📍 **Broker:** {channel_name}\n"
-                    f"📝 **Details:**\n{text}\n\n"
-                    f"⏰ **Time:** {now}"
-                )
-
-                # O'z kanalingizga yuborish
-                await client.send_message(
-                    TARGET_CHANNEL, 
-                    formatted_text, 
-                    link_preview=False
-                )
-                logger.info(f"✅ YUBORILDI: [{channel_name}]")
+                # Oddiy string birlashtirish (indekssiz)
+                res = f"🚛 **NEW LOAD**\n\n"
+                res += f"📍 **Broker:** {ch_name}\n"
+                res += f"📝 **Info:**\n{msg_text}\n\n"
+                res += f"⏰ {datetime.now().strftime('%H:%M')}"
+                
+                await client.send_message(TARGET_CHANNEL, res, link_preview=False)
+                logger.info(f"✅ YUBORILDI: {ch_name}")
 
             except Exception as e:
-                # Xato chiqsa bot to'xtab qolmasligi uchun faqat log qilamiz
-                logger.error(f"❌ Handler Error: {e}")
+                logger.error(f"⚠️ Xabar yuborishda xato: {e}")
 
-        logger.info("🎯 Bot tayyor! Kanallarni kuzatish boshlandi.")
+        logger.info("🎯 Bot tayyor! Kuzatuv boshlandi.")
         await client.run_until_disconnected()
 
     except Exception as e:
         logger.error(f"❌ Fatal Error: {e}")
-        logger.error(traceback.format_exc())
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
-        logger.info("🛑 Bot to'xtatildi.")
+    asyncio.run(main())
