@@ -2,18 +2,12 @@ import asyncio
 import logging
 import os
 from telethon import TelegramClient, events
-from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument
 
-# ==================== SOZLAMALAR ====================
 API_ID = int(os.environ.get("API_ID", "35076613"))
 API_HASH = os.environ.get("API_HASH", "5f51e95e90785a08d396d13c1e6dc5f1")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "7950311441:AAHI4X3lnVYIzDgXO9SlUhdSpXmBDpHurJU")
-PHONE = os.environ.get("PHONE", "")  # Telefon raqamingiz (+998...)
-
-# Yuklarni yuborish uchun maqsad kanal
 TARGET_CHANNEL = int(os.environ.get("TARGET_CHANNEL", "-1001803815649758"))
 
-# ==================== MANBA KANALLAR ====================
 SOURCE_CHANNELS = {
     -1002448589077: "Street brokers IDS/S3",
     -1001480955628: "RXO/CAYOTE/XPO",
@@ -33,43 +27,32 @@ SOURCE_CHANNELS = {
     -1001292793466: "PO/VAN/Refer",
 }
 
-# ==================== LOGGING ====================
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# ==================== DUPLIKAT FILTRI ====================
 seen_messages = set()
 
-def is_duplicate(channel_id: int, message_id: int) -> bool:
+def is_duplicate(channel_id, message_id):
     key = f"{channel_id}:{message_id}"
     if key in seen_messages:
         return True
     seen_messages.add(key)
-    # Xotira to'lib ketmasligi uchun eski ma'lumotlarni tozalash
     if len(seen_messages) > 10000:
-        old = list(seen_messages)[:5000]
-        for item in old:
+        for item in list(seen_messages)[:5000]:
             seen_messages.discard(item)
     return False
 
-# ==================== BOT ISHGA TUSHIRISH ====================
 async def main():
     logger.info("Bot ishga tushmoqda...")
 
-    # Telethon client (userbot sifatida ishlaydi - kanallarni o'qish uchun)
     client = TelegramClient("freight_session", API_ID, API_HASH)
-
-    await client.start(phone=PHONE)
+    await client.start()
     logger.info("✅ Telegram-ga ulandi!")
 
-    # Bot client (xabar yuborish uchun)
-    bot = await TelegramClient("bot_session", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+    bot = TelegramClient("bot_session", API_ID, API_HASH)
+    await bot.start(bot_token=BOT_TOKEN)
     logger.info("✅ Bot ulandi!")
 
-    # Kanallar ro'yxati
     source_ids = list(SOURCE_CHANNELS.keys())
     logger.info(f"📡 {len(source_ids)} ta kanal kuzatilmoqda...")
 
@@ -80,26 +63,15 @@ async def main():
             message_id = event.message.id
             channel_name = SOURCE_CHANNELS.get(channel_id, "Noma'lum")
 
-            # Duplikat tekshirish
             if is_duplicate(channel_id, message_id):
                 return
 
-            # Xabar matni
             text = event.message.message or ""
-
-            # Agar xabar bo'sh bo'lsa o'tkazib yuborish
             if not text.strip():
                 return
 
-            # Maqsad kanalga yuborish
             forwarded_text = f"📦 [{channel_name}]\n\n{text}"
-
-            await bot.send_message(
-                TARGET_CHANNEL,
-                forwarded_text,
-                link_preview=False
-            )
-
+            await bot.send_message(TARGET_CHANNEL, forwarded_text, link_preview=False)
             logger.info(f"✅ Yuborildi: [{channel_name}] - msg_id:{message_id}")
 
         except Exception as e:
@@ -110,4 +82,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
