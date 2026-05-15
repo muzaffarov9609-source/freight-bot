@@ -73,11 +73,25 @@ async def main():
                 return
 
             text = event.message.message or ""
-            if not text.strip():
-                return
+            caption = f"📦 [{channel_name}]\n\n{text}" if text else f"📦 [{channel_name}]"
 
-            forwarded_text = f"📦 [{channel_name}]\n\n{text}"
-            await bot.send_message(TARGET_CHANNEL, forwarded_text, link_preview=False)
+            # Rasm yoki fayl bor bo'lsa
+            if event.message.media:
+                await client.send_message(
+                    TARGET_CHANNEL,
+                    caption,
+                    file=event.message.media,
+                )
+            else:
+                # Faqat matn
+                if not text.strip():
+                    return
+                await bot.send_message(
+                    TARGET_CHANNEL,
+                    caption,
+                    link_preview=False
+                )
+
             logger.info(f"✅ Yuborildi: [{channel_name}] - msg_id:{message_id}")
 
         except Exception as e:
