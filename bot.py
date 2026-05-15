@@ -2,10 +2,11 @@ import asyncio
 import logging
 import os
 import traceback
+from datetime import datetime
 from telethon import TelegramClient, events
 
 API_ID = int(os.environ.get("API_ID", "35076613"))
-API_HASH = os.environ.get("API_HASH", "5f51e95e90785a08d396d13c1e6dc5f1")
+API_HASH = os.environ.get("API_HASH", "5f51e95e90785a08d396d13c1e6dc5f1"))
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "7950311441:AAHI4X3lnVYIzDgXO9SlUhdSpXmBDpHurJU")
 TARGET_CHANNEL = int(os.environ.get("TARGET_CHANNEL", "-1001803815649758"))
 
@@ -43,6 +44,15 @@ def is_duplicate(channel_id, message_id):
             seen_messages.discard(item)
     return False
 
+def format_message(channel_name, text):
+    now = datetime.now().strftime("%d %b %Y, %H:%M")
+    return (
+        f"🚛 NEW LOAD\n\n"
+        f"📍 Broker: {channel_name}\n"
+        f"📝 Info:\n{text}\n\n"
+        f"⏰ Time: {now}"
+    )
+
 async def main():
     logger.info("Bot ishga tushmoqda...")
 
@@ -67,39 +77,29 @@ async def main():
         try:
             channel_id = event.chat_id
             message_id = event.message.id
-            channel_name = SOURCE_CHANNELS.get(channel_id, "Noma'lum")
+            channel_name = SOURCE_CHANNELS.get(channel_id, "Unknown")
 
             if is_duplicate(channel_id, message_id):
                 return
 
             text = event.message.message or event.message.text or ""
-            caption = f"📦 [{channel_name}]\n\n{text}" if text else f"📦 [{channel_name}]"
 
-            logger.info(f"📨 Yangi xabar: [{channel_name}] - media: {type(event.message.media).__name__}")
-
-            if event.message.media:
-                try:
-                    # Media faylni yuklab bot orqali yuborish
-                    file = await client.download_media(event.message, bytes)
-                    await bot.send_file(
-                        TARGET_CHANNEL,
-                        file=file,
-                        caption=caption
-                    )
-                except Exception as media_err:
-                    logger.error(f"❌ Media xato: {media_err}")
-                    if text.strip():
-                        await bot.send_message(TARGET_CHANNEL, caption, link_preview=False)
-            elif text.strip():
-                await bot.send_message(TARGET_CHANNEL, caption, link_preview=False)
-            else:
-                logger.info(f"⏭️ Bo'sh xabar o'tkazildi")
+            if not text.strip():
+                logger.info(f"⏭️ Bo'sh xabar o'tkazildi: [{channel_name}]")
                 return
+
+            formatted = format_message(channel_name, text)
+
+            await bot.send_message(
+                TARGET_CHANNEL,
+                formatted,
+                link_preview=False
+            )
 
             logger.info(f"✅ Yuborildi: [{channel_name}] - msg_id:{message_id}")
 
         except Exception as e:
-            logger.error(f"❌ Umumiy xato: {e}")
+            logger.error(f"❌ Xato: {e}")
             logger.error(traceback.format_exc())
 
     logger.info("🚀 Bot tayyor! Kanallarni kuzatyapman...")
