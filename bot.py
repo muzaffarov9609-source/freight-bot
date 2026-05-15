@@ -1,8 +1,8 @@
 import asyncio
 import logging
 import os
+import traceback
 from telethon import TelegramClient, events
-from telethon.tl.types import InputChannel
 
 API_ID = int(os.environ.get("API_ID", "35076613"))
 API_HASH = os.environ.get("API_HASH", "5f51e95e90785a08d396d13c1e6dc5f1")
@@ -75,21 +75,40 @@ async def main():
             text = event.message.message or event.message.text or ""
             caption = f"📦 [{channel_name}]\n\n{text}" if text else f"📦 [{channel_name}]"
 
-            try:
-                # Avval forward qilishga harakat
-                await client.forward_messages(TARGET_CHANNEL, event.message)
-                await bot.send_message(TARGET_CHANNEL, f"📦 [{channel_name}]", link_preview=False)
-            except Exception:
-                # Forward ishlamasa matnni yuborish
-                if text.strip():
-                    await bot.send_message(TARGET_CHANNEL, caption, link_preview=False)
-                else:
-                    return
+            logger.info(f"📨 Yangi xabar: [{channel_name}] - media: {type(event.message.media).__name__}")
+
+            if event.message.media:
+                try:
+                    await client.send_file(
+                        TARGET_CHANNEL,
+                        file=event.message.media,
+                        caption=caption
+                    )
+                except Exception as media_err:
+                    logger.error(f"❌ Media xato: {media_err}")
+                    logger.error(traceback.format_exc())
+                    # Media ishlamasa faqat matn yuborish
+                    if text.strip():
+                        await client.send_message(
+                            TARGET_CHANNEL,
+                            caption,
+                            link_preview=False
+                        )
+            elif text.strip():
+                await client.send_message(
+                    TARGET_CHANNEL,
+                    caption,
+                    link_preview=False
+                )
+            else:
+                logger.info(f"⏭️ Bo'sh xabar o'tkazildi: [{channel_name}]")
+                return
 
             logger.info(f"✅ Yuborildi: [{channel_name}] - msg_id:{message_id}")
 
         except Exception as e:
-            logger.error(f"❌ Xato: {e}")
+            logger.error(f"❌ Umumiy xato: {e}")
+            logger.error(traceback.format_exc())
 
     logger.info("🚀 Bot tayyor! Kanallarni kuzatyapman...")
     await client.run_until_disconnected()
