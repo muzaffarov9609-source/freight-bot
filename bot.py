@@ -4,7 +4,6 @@ import os
 import traceback
 from datetime import datetime
 from telethon import TelegramClient, events
-from telethon.errors import ChatForwardsRestrictedError
 
 API_ID = int(os.environ.get("API_ID", "35076613"))
 API_HASH = os.environ.get("API_HASH", "5f51e95e90785a08d396d13c1e6dc5f1")
@@ -57,7 +56,7 @@ def format_message(channel_name, text):
 async def main():
     logger.info("=" * 60)
     logger.info("🚀 FREIGHT MONITOR BOT ISHGA TUSHMOQDA...")
-    logger.info("Bot TOKEN orqali (Telegram account kerak emas)")
+    logger.info("Bot TOKEN orqali direct monitoring")
     logger.info("=" * 60)
 
     bot = TelegramClient("bot_session", API_ID, API_HASH)
@@ -74,24 +73,7 @@ async def main():
         return
 
     try:
-        logger.info("\n📡 Kanallarni subscribe qilyapman...")
-        logger.info("=" * 60)
-        
-        subscribed_count = 0
-        for channel_id, channel_name in SOURCE_CHANNELS.items():
-            try:
-                await bot(
-                    "channels.joinChannel",
-                    channel=channel_id
-                )
-                logger.info(f"✅ Subscribe: {channel_name}")
-                subscribed_count += 1
-                
-            except Exception as e:
-                logger.info(f"ℹ️  {channel_name}: {str(e)[:40]}")
-                subscribed_count += 1
-        
-        logger.info(f"\n✅ {subscribed_count}/{len(SOURCE_CHANNELS)} ta kanal tayyor")
+        logger.info("\n📡 Kanallarni monitor qiluvchi handler o'rnatilmoqda...")
         logger.info("=" * 60)
 
         @bot.on(events.NewMessage(chats=list(SOURCE_CHANNELS.keys())))
@@ -121,8 +103,6 @@ async def main():
                     )
                     logger.info(f"✅ YUBORILDI: [{channel_name}] - msg_id:{message_id}")
 
-                except ChatForwardsRestrictedError:
-                    logger.warning(f"⚠️ Forward restricted: [{channel_name}]")
                 except Exception as send_err:
                     logger.error(f"❌ Send Error [{channel_name}]: {send_err}")
 
@@ -130,6 +110,9 @@ async def main():
                 logger.error(f"❌ Handler Error: {e}")
                 logger.error(traceback.format_exc())
 
+        logger.info("✅ Handler o'rnatildi")
+        logger.info(f"📡 {len(SOURCE_CHANNELS)} ta kanaldan monitor qilyapman...")
+        logger.info("=" * 60)
         logger.info("\n🎯 Bot tayyor! Kanallarni kuzatyapman...")
         logger.info("🔔 Yangi yuklarni monitor qilyapman...\n")
 
