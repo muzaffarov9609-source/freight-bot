@@ -1,12 +1,21 @@
 import asyncio
 import logging
 import os
+import base64
 from telethon import TelegramClient, events
+from telethon.sessions import MemorySession
+from telethon.crypto import AuthKey
 
 API_ID = int(os.environ.get("API_ID", "35076613"))
 API_HASH = os.environ.get("API_HASH", "5f51e95e90785a08d396d13c1e6dc5f1")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "7950311441:AAHI4X3lnVYIzDgXO9SlUhdSpXmBDpHurJU")
 TARGET_CHANNEL = int(os.environ.get("TARGET_CHANNEL", "-1001803815649758"))
+
+# Session ma'lumotlari (freight_session.session dan olindi)
+SESSION_DC_ID = 2
+SESSION_SERVER = "149.154.167.51"
+SESSION_PORT = 443
+SESSION_AUTH_KEY = base64.b64decode("NBbvbeX++l3QxhgoJe8zXTduN+wZQUAg95vvPeTzE47Ig94a82xiiGFu7bzHlDM/sCKE1Qp5gh0qxwHATY6zNLbgKP67TlFhrhJ+eY+BgZqfjqG0/D9AdWlBwgOo07v35ZXLIBZrFJqdIMq6AHhHsC4wwg13sojwDe1vnS9pk89V/0I6Cf8mQRs9pP5/uR8aEdmv9OVt2l2QI51baWnI00VgBWpNtVEwhhacIJmE51ZCDcLmz7CuCWV/2hghzZ1AGzXwW0CztlXcefavNnKyjdR0nLBHqR9Fb+nk9dItov9qis/31LPYM8ZW7FQJaolCYXor86G+ijPpHJd5PPJ8Pw==")
 
 SOURCE_CHANNELS = {
     -1002448589077: "Street brokers IDS/S3",
@@ -45,8 +54,13 @@ def is_duplicate(channel_id, message_id):
 async def main():
     logger.info("Bot ishga tushmoqda...")
 
-    client = TelegramClient("freight_session", API_ID, API_HASH)
-    await client.start()
+    # Memory session - fayl shart emas
+    session = MemorySession()
+    session.set_dc(SESSION_DC_ID, SESSION_SERVER, SESSION_PORT)
+    session.auth_key = AuthKey(data=SESSION_AUTH_KEY)
+
+    client = TelegramClient(session, API_ID, API_HASH)
+    await client.connect()
     logger.info("✅ Telegram-ga ulandi!")
 
     bot = TelegramClient("bot_session", API_ID, API_HASH)
