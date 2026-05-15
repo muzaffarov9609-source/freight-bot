@@ -54,56 +54,83 @@ def format_message(channel_name, text):
     )
 
 async def main():
-    logger.info("Bot ishga tushmoqda...")
-
-    client = TelegramClient("freight_session", API_ID, API_HASH)
-    await client.start()
-    logger.info("✅ Telegram-ga ulandi!")
+    logger.info("=" * 60)
+    logger.info("🚀 BOT ISHGA TUSHMOQDA...")
+    logger.info("=" * 60)
 
     bot = TelegramClient("bot_session", API_ID, API_HASH)
-    await bot.start(bot_token=BOT_TOKEN)
-    logger.info("✅ Bot ulandi!")
+    
+    try:
+        await bot.start(bot_token=BOT_TOKEN)
+        logger.info("✅ Bot Telegram-ga ulandi!")
+    except Exception as e:
+        logger.error(f"❌ Bot ulana olmadi: {e}")
+        return
 
-    channel_entities = []
-    async for dialog in client.iter_dialogs():
-        if dialog.id in SOURCE_CHANNELS:
-            channel_entities.append(dialog.entity)
-            logger.info(f"✅ Kanal tayyor: {dialog.name}")
+    try:
+        channel_entities = []
+        
+        for channel_id in SOURCE_CHANNELS.keys():
+            try:
+                entity = await bot.get_entity(channel_id)
+                channel_entities.append(entity)
+                logger.info(f"✅ Kanal ulandi: {SOURCE_CHANNELS[channel_id]}")
+            except Exception as e:
+                logger.warning(f"⚠️ Kanal topilmadi ({channel_id}): {str(e)[:50]}")
 
-    logger.info(f"📡 {len(channel_entities)} ta kanal kuzatilmoqda...")
+        logger.info(f"📡 {len(channel_entities)} ta kanal kuzatilmoqda...")
+        logger.info("=" * 60)
 
-    @client.on(events.NewMessage(chats=channel_entities))
-    async def handler(event):
-        try:
-            channel_id = event.chat_id
-            message_id = event.message.id
-            channel_name = SOURCE_CHANNELS.get(channel_id, "Unknown")
+        @bot.on(events.NewMessage(chats=channel_entities))
+        async def handler(event):
+            try:
+                channel_id = event.chat_id
+                message_id = event.message.id
+                channel_name = SOURCE_CHANNELS.get(channel_id, "Unknown")
 
-            if is_duplicate(channel_id, message_id):
-                return
+                if is_duplicate(channel_id, message_id):
+                    logger.info(f"🔄 Duplikat: [{channel_name}] (msg_id:{message_id})")
+                    return
 
-            text = event.message.message or event.message.text or ""
+                text = event.message.message or event.message.text or ""
 
-            if not text.strip():
-                logger.info(f"⏭️ Bo'sh xabar o'tkazildi: [{channel_name}]")
-                return
+                if not text.strip():
+                    logger.info(f"⏭️ Bo'sh xabar skip: [{channel_name}]")
+                    return
 
-            formatted = format_message(channel_name, text)
+                formatted = format_message(channel_name, text)
 
-            await bot.send_message(
-                TARGET_CHANNEL,
-                formatted,
-                link_preview=False
-            )
+                try:
+                    await bot.send_message(
+                        TARGET_CHANNEL,
+                        formatted,
+                        link_preview=False
+                    )
+                    logger.info(f"✅ YUBORILDI: [{channel_name}] - msg_id:{message_id}")
 
-            logger.info(f"✅ Yuborildi: [{channel_name}] - msg_id:{message_id}")
+                except Exception as send_err:
+                    logger.error(f"❌ Send Error [{channel_name}]: {send_err}")
 
-        except Exception as e:
-            logger.error(f"❌ Xato: {e}")
-            logger.error(traceback.format_exc())
+            except Exception as e:
+                logger.error(f"❌ Handler Error: {e}")
+                logger.error(traceback.format_exc())
 
-    logger.info("🚀 Bot tayyor! Kanallarni kuzatyapman...")
-    await client.run_until_disconnected()
+        logger.info("🎯 Bot tayyor! Kanallarni kuzatyapman...\n")
+
+        await bot.run_until_disconnected()
+
+    except Exception as e:
+        logger.error(f"❌ XATO: {e}")
+        logger.error(traceback.format_exc())
+    finally:
+        await bot.disconnect()
+        logger.info("✅ Bot to'xtatildi")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("🛑 Bot to'xtatildi (CTRL+C)")
+    except Exception as e:
+        logger.error(f"❌ Fatal Error: {e}")
+        logger.error(traceback.format_exc())
