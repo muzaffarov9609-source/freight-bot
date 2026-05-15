@@ -26,7 +26,6 @@ SOURCE_CHANNELS = {
     -1002271799783: "ITS PO only", -1001292793466: "PO/VAN/Refer"
 }
 
-# 3. FILTRLAR (Yumshoq va faqat yuklar uchun)
 KEYWORDS = ["PO", "VNL", "VAN", "LOAD", "READY", "OFFER", "TEAM", "SOLO", "RPM", "MILES", "TRIP", "PICK", "DROP"]
 BLACKLIST = ["join channel", "subscribe", "obuna bo'ling", "reklama sotiladi"]
 
@@ -34,49 +33,44 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 async def main():
-    logger.info("🚀 USERNAME FREIGHT MONITOR STARTING...")
+    logger.info("🚀 FORWARD-PROOF FREIGHT MONITOR STARTING...")
     client = TelegramClient(SESSION_PATH, API_ID, API_HASH, connection_retries=None)
     
     try:
         await client.start()
         logger.info("✅ Akkaunt bog'landi!")
         
+        # event.raw_text va oddiy message.message'ni ham tekshirish uchun umumiy eshituvchi
         @client.on(events.NewMessage())
         async def handler(event):
             try:
                 if event.chat_id not in SOURCE_CHANNELS:
                     return
 
-                # Xabarni markdown entitiylari (bosiladigan havolalar, ko'k usernames) bilan birga olamiz
-                msg_text = event.message.message
+                # Har qanday holatda matnni aniq olish (agar forward bo'lsa ham raw_text qutqaradi)
+                msg_text = event.raw_text if event.raw_text else event.message.message
                 if not msg_text:
                     return
 
                 text_lower = msg_text.lower()
-
-                # 1. REKLAMA FILTRI
                 if any(bad in text_lower for bad in BLACKLIST):
                     return
 
-                # 2. YUK VA SHTAT TEKSHIRUVI
+                # Har qanday ko'k rangdagi username bor xabarni yoki kalit so'zlarni yuk deb hisoblaymiz
                 has_usa_state = bool(re.search(r'\b[A-Z]{2}\b', msg_text))
                 has_keyword = any(good in msg_text.upper() for good in KEYWORDS)
-                # Agar broker shunchaki @username qoldirgan bo'lsa ham yuk deb hisoblasin
                 has_at_username = "@" in msg_text 
 
                 if has_keyword or has_usa_state or has_at_username:
                     ch_name = SOURCE_CHANNELS.get(event.chat_id, "Unknown")
                     
-                    # Matn ichidagi barcha @usernamelarni qidirib topish
+                    # Matndagi barcha @usernamelarni xavfsiz yig'ish
                     usernames = re.findall(r'@\w+', msg_text)
                     broker_contacts = ""
-                    
                     if usernames:
-                        # Noyob (duplicate bo'lmagan) usernamelarni saralab olamiz
                         unique_users = list(set(usernames))
                         broker_contacts = "\n\n👤 **Brokers to contact:** " + ", ".join(unique_users)
 
-                    # CHUQQUR FORMATLANGAN SHABLON
                     now = datetime.now().strftime("%H:%M")
                     res = (
                         f"🚚 **{ch_name}**\n"
@@ -87,7 +81,6 @@ async def main():
                         f"🕒 {now} | #FREIGHT"
                     )
                     
-                    # Xabarni o'z kanalingizga yuborish
                     await client.send_message(TARGET_CHANNEL, res, link_preview=False)
                     logger.info(f"✅ YUBORILDI: {ch_name}")
 
