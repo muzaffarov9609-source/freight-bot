@@ -1,3 +1,6 @@
+GitHub → `bot.py` → hammасini o'chirib quyidagini qo'ying:
+
+```python
 import asyncio
 import logging
 import os
@@ -6,9 +9,10 @@ from datetime import datetime
 from telethon import TelegramClient, events
 
 API_ID = int(os.environ.get("API_ID", "35076613"))
-API_HASH = os.environ.get("API_HASH", "5f51e95e90785a08d396d13c1e6dc5f1")
+API_HASH = os.environ.get("API_HASH", "5f51e95e90785a08d396d13c1e6dc5f1"))
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "7950311441:AAHI4X3lnVYIzDgXO9SlUhdSpXmBDpHurJU")
 TARGET_CHANNEL = int(os.environ.get("TARGET_CHANNEL", "-1001803815649758"))
+
 SOURCE_CHANNELS = {
     -1002448589077: "Street brokers IDS/S3",
     -1001480955628: "RXO/CAYOTE/XPO",
@@ -30,6 +34,7 @@ SOURCE_CHANNELS = {
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
 seen_messages = set()
 
 def is_duplicate(channel_id, message_id):
@@ -62,23 +67,11 @@ async def main():
     await bot.start(bot_token=BOT_TOKEN)
     logger.info("✅ Bot ulandi!")
 
-    # Target channel entity oldindan olinadi
-    try:
-        target_entity = await bot.get_entity(TARGET_CHANNEL)
-        logger.info(f"✅ Target kanal tayyor: {target_entity.title}")
-    except Exception as e:
-        logger.error(f"❌ Target kanalga ulanib bo'lmadi: {e}")
-        return
-
     channel_entities = []
     async for dialog in client.iter_dialogs():
         if dialog.id in SOURCE_CHANNELS:
             channel_entities.append(dialog.entity)
             logger.info(f"✅ Kanal tayyor: {dialog.name}")
-
-    if not channel_entities:
-        logger.error("❌ Hech qanday manba kanal topilmadi!")
-        return
 
     logger.info(f"📡 {len(channel_entities)} ta kanal kuzatilmoqda...")
 
@@ -93,22 +86,23 @@ async def main():
                 return
 
             text = event.message.message or event.message.text or ""
+
             if not text.strip():
-                logger.info(f"⏭️ Empty message skipped: [{channel_name}]")
+                logger.info(f"⏭️ Bo'sh xabar o'tkazildi: [{channel_name}]")
                 return
 
             formatted = format_message(channel_name, text)
 
-            # ✅ bot orqali yuborish (client emas!)
             await bot.send_message(
-                target_entity,
+                TARGET_CHANNEL,
                 formatted,
                 link_preview=False
             )
-            logger.info(f"✅ Sent: [{channel_name}] - msg_id:{message_id}")
+
+            logger.info(f"✅ Yuborildi: [{channel_name}] - msg_id:{message_id}")
 
         except Exception as e:
-            logger.error(f"❌ Error: {e}")
+            logger.error(f"❌ Xato: {e}")
             logger.error(traceback.format_exc())
 
     logger.info("🚀 Bot tayyor! Kanallarni kuzatyapman...")
@@ -116,3 +110,6 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+```
+
+Commit qiling! 🚀
