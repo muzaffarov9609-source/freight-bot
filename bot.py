@@ -73,24 +73,16 @@ async def main():
                 return
 
             text = event.message.message or ""
-            caption = f"📦 [{channel_name}]\n\n{text}" if text else f"📦 [{channel_name}]"
 
-            # Rasm yoki fayl bor bo'lsa
-            if event.message.media:
-                await client.send_message(
-                    TARGET_CHANNEL,
-                    caption,
-                    file=event.message.media,
-                )
-            else:
-                # Faqat matn
-                if not text.strip():
-                    return
-                await bot.send_message(
-                    TARGET_CHANNEL,
-                    caption,
-                    link_preview=False
-                )
+            # Xabarni forward qilish
+            await client.forward_messages(TARGET_CHANNEL, event.message)
+
+            # Kanal nomi qo'shimcha yuborish
+            await bot.send_message(
+                TARGET_CHANNEL,
+                f"📦 [{channel_name}]",
+                link_preview=False
+            )
 
             logger.info(f"✅ Yuborildi: [{channel_name}] - msg_id:{message_id}")
 
