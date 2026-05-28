@@ -4,12 +4,15 @@ import os
 import re
 from datetime import datetime
 from telethon import TelegramClient, events
+from telethon.sessions import StringSession
 
 # 1. SOZLAMALAR
 API_ID = int(os.environ.get("API_ID", "35076613"))
 API_HASH = os.environ.get("API_HASH", "5f51e95e90785a08d396d13c1e6dc5f1")
-TARGET_CHANNEL = int(os.environ.get("TARGET_CHANNEL", "-1001803815649758"))
+TARGET_CHANNEL = int(os.environ.get("TARGET_CHANNEL", "0"))  # Set TARGET_CHANNEL in Railway env vars
 
+# SESSION: use STRING session from env var for Railway (no file system dependency)
+SESSION_STRING = os.environ.get("SESSION_STRING", "")
 SESSION_NAME = "super_stable_session"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SESSION_PATH = os.path.join(BASE_DIR, f"{SESSION_NAME}.session")
@@ -34,7 +37,9 @@ logger = logging.getLogger(__name__)
 
 async def main():
     logger.info("🚀 FORWARD-PROOF FREIGHT MONITOR STARTING...")
-    client = TelegramClient(SESSION_PATH, API_ID, API_HASH, connection_retries=None)
+    # Use StringSession if available (recommended for Railway), else fall back to file session
+    session = StringSession(SESSION_STRING) if SESSION_STRING else SESSION_PATH
+    client = TelegramClient(session, API_ID, API_HASH, connection_retries=None)
     
     try:
         await client.start()
